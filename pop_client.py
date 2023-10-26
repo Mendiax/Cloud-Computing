@@ -6,32 +6,12 @@ import mcl
 
 from functools import reduce
 
+Z = 8
 
 def get_fr(val : int):
     x = mcl.Fr()
-    # print(f'{val=}')
     x.setInt(val)
     return x
-
-# def exponential(x, y):
-#     if x.isZero():
-#         return get_fr(0)
-#     if y == 0:
-#         return get_fr(1)
-#     r = mcl.Fr()
-#     r.setInt(1)
-#     # print(y)
-#     for i in range(y):
-#         r = r * x
-#     return r
-
-# def horner_exponential(x, n):
-#     result = get_fr(1)
-#     one = get_fr(1)
-#     for i in range(n, 0, -1):
-#         i_fr = get_fr(i)
-#         result = one + ((x / i_fr) * result)
-#     return result
 
 
 def lagrange_interpolation(x, phi):
@@ -63,18 +43,6 @@ def eval_poly_horner(coefficients, x):
     return result
 
 
-BITS_PER_IDX = 4
-
-def convert_bytes_to_int(bytes, chunk_id):
-    return int.from_bytes(bytes, byteorder='little') << BITS_PER_IDX + chunk_id
-
-def convert_bytes_to_fr(bytes, chunk_id):
-    assert chunk_id < 2**BITS_PER_IDX
-    mi = mcl.Fr()
-    mi.setStr(bytes)
-    # mi = get_fr(convert_bytes_to_int(bytes, chunk_id))
-    return mi
-
 # def eval_poly(P, x) -> mcl.Fr:
 #     y = mcl.Fr()
 #     y.setInt(0)
@@ -83,51 +51,75 @@ def convert_bytes_to_fr(bytes, chunk_id):
 #     # print(y)
 #     return y
 
+def fr_to_str(fr : mcl.Fr):
+    return fr.serialize().hex()
+
+def fr_from_str(fr_str : str):
+    fr = mcl.Fr()
+    fr.deserialize(bytes.fromhex(fr_str))
+    return fr
+
+
 class Client:
     def __init__(self, file_name) -> None:
         self.file_name = file_name
         self.sk = mcl.Fr.rnd()
+        self.LF = None
 
 
     def POLY(self, IDf, length):
         A = [
             mcl.Fr.setHashOf(f'{self.sk}{IDf}{i}'.encode())
-            for i in range(length + 1)]
+            for i in range(length)]
         return A
 
+    def save_to_file(self, path):
+        print(self.sk)
+        json_dict = {
+            "sk" : fr_to_str(self.sk),
+            "poly" : [fr_to_str(a) for a in self.LF],
+            "file" : self.file_name
+        }
+        # print(json.dumps(json_dict, indent=2))
+
+        with open(path, 'w') as fd:
+            fd.write(json.dumps(json_dict,indent=2))
+            # json.dump(fd, json_dict)
+
+    def load_from_file(self, path):
+        with open(path, 'r') as fd:
+            file = fd.read()
+            json_dict = json.loads(file)
+            # print(json_dict)
+            self.sk = fr_from_str(json_dict["sk"])
+            self.LF = [
+                fr_from_str(a) for a in json_dict["poly"]
+            ]
+            self.file_name = json_dict["file"]
 
     def get_file_tokens(self):
         # print(self.LF)
-        CHUNK_SIZE = 4
+        CHUNK_SIZE = 1
         M = []
-        chunk_id = 1
         with open(self.file_name, 'rb') as fd:
             while True:
                 data = fd.read(CHUNK_SIZE)
                 if data == b'':
                     break
-                # print(f'{data=}')
-                # assert chunk_id < 2**16
-                # mi = get_fr(int.from_bytes(data, byteorder='little') << 16 + chunk_id)
-                M.append(data)
-
-                # chunk_fr = convert_bytes_to_fr(data, chunk_id)
-                # d2 = str(convert_bytes_to_int(data, chunk_id))
-                # d1 = chunk_fr.getStr().decode()
-                # assert d1 == d2, f'{d1}, {d2}'
-                chunk_id += 1
+                mi = get_fr(int.from_bytes(data, byteorder='little'))
+                M.append(mi)
                 # print(f'{data=} {mi=}')
 
-        self.LF = self.POLY(self.file_name, len(M))
+        self.LF = self.POLY(self.file_name, len(M) + 1)
         # print(f'{len(self.LF)=}')
         # print(self.LF)
         Tf = [
-            (mi, eval_poly_horner(self.LF, convert_bytes_to_fr(mi, i)))
-            for i, mi in enumerate(M)
+            (mi, eval_poly_horner(self.LF, mi))
+            for mi in M
         ]
-        # print('client:')
-        # print(f'{Tf=}')
-        # print(f'{len(Tf)=}')
+        print('client:')
+        print(f'{Tf=}')
+        print(f'{len(Tf)=}')
 
         return Tf
 
@@ -157,30 +149,22 @@ class Client:
 
 
 
-class Cloud:
-    def __init__(self) -> None:
-        pass
-
-    def upload(self, Tf):
-        self.Tf = Tf
-
-    def verify(self, H):
-        Qr, x, Qrl = H
-        psi = [(get_fr(0), Qrl)]
-        for i, (mi,ti) in  enumerate(self.Tf):
-            # data_val = int.from_bytes(mi, byteorder='little')
-            m = convert_bytes_to_fr(mi, i)
-            psi.append((m, Qr * ti))
-
-        return lagrange_interpolation( x, psi)
-
-    def get_file(self, path_to_save : str):
-        with open(path_to_save, 'bw') as fd:
-            for mi, ti in self.Tf:
-                fd.write(mi)
 
 
 
+import json
+def read_proof_from_json(path : str):
+    with open(path, 'r') as fd:
+        json = json.load(fd)
+
+        return mcl.G1(json['proof'])
+
+# def write_proof_to_json(path : str, pf : mcl.G1):
+#     with open(path, 'r') as fd:
+#         json_dict = {
+#             "proof" : pf.getStr()
+#         }
+#         json.dump(fd, json_dict)
 
 import sys
 
@@ -193,28 +177,26 @@ else:
 print(file_name)
 
 client = Client(file_name)
-cloud = Cloud()
+# cloud = Cloud()
 tokens = client.get_file_tokens()
-# tokens.pop()
-print(f'{len(tokens)=}')
-# print(tokens)
-cloud.upload(tokens)
+# cloud.upload(tokens)
+
+# send to json
+client.save_to_file("client.json")
+client.load_from_file("client.json")
 
 H = client.gen_challenge()
 
+
+# read Pf
+
+# Pf = read_proof_from_json("response.json")
+
 # print(f'{Q=}\n{H=}')
 # print(client.Kf)
-Pf = cloud.verify(H)
+# Pf = cloud.verify(H)
 # print(Pf)
 
 
 
-print(f'{client.check_challenge(Pf)=}')
-
-file_output = 'output.txt'
-cloud.get_file(file_output)
-
-import filecmp
-identical = filecmp.cmp(file_name, file_output)
-print(f'{identical=}')
-assert(identical)
+# print(client.check_challenge(Pf))
