@@ -2,3 +2,4 @@ random_file*
 __pycache__/*
 
 output.txt
+data/*

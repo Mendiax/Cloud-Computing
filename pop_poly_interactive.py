@@ -199,7 +199,8 @@ class Cloud:
 
 import sys
 
-
+print(sys.argv)
+assert len(sys.argv) == 3
 if len(sys.argv) == 1 :
     file_name = "test_file.txt"
 else:
@@ -207,58 +208,77 @@ else:
 
 print(file_name)
 
-client = Client(file_name)
-cloud = Cloud()
+if sys.argv[2] == "client":
+    client = Client(file_name)
+else:
+    cloud = Cloud()
 
+import os
+import glob
 
-# client
-tokens = client.get_file_tokens()
-# tokens.pop()
-print(f'{len(tokens)=}')
-mcljson.save_to_json('data/tagged_file.json', tokens)
-
-
-
-# cloud
-loaded_data = mcljson.load_from_json('data/tagged_file.json')
-# print(tokens)
-cloud.upload(cloud.deserialize_tagged_file(loaded_data))
+files = glob.glob('./data/*')
+for f in files:
+    os.remove(f)
 
 
 
-
-#  client
-H = client.gen_challenge()
-# print(f'{Q=}\n{H=}')
-# print(client.Kf)
-mcljson.save_to_json('data/challenge.json', H)
-
-
-# cloud
-loaded_challenge = mcljson.load_from_json('data/challenge.json')
-cloud_challenge = cloud.deserialize_challenge(loaded_challenge)
-Pf = cloud.verify(cloud_challenge)
-# print(Pf)
-mcljson.save_to_json('data/proof_file.json', Pf)
+if sys.argv[2] == "client":
+    input("start")
+    # client
+    tokens = client.get_file_tokens()
+    # tokens.pop()
+    print(f'{len(tokens)=}')
+    tagged_file = 'data/tagged_file.json'
+    mcljson.save_to_json(tagged_file, tokens)
+    print(f"written tagged file {tagged_file}")
 
 
+if sys.argv[2] == "cloud":
+    input("tagged")
+    # cloud
+    loaded_data = mcljson.load_from_json('data/tagged_file.json')
+    # print(tokens)
+    cloud.upload(cloud.deserialize_tagged_file(loaded_data))
 
 
-loaded_proof_file__ = mcljson.load_from_json('data/proof_file.json')
-if isinstance(loaded_proof_file__, str):
-    proof_file__ = mcl.G1()
-    proof_file__.setStr(bytes(loaded_proof_file__, 'latin-1'))
-    if client.check_challenge(proof_file__):
-        print("Proof verified!")
-    else:
-        print("Proof failed!")
+
+if sys.argv[2] == "client":
+    #  client
+    H = client.gen_challenge()
+    # print(f'{Q=}\n{H=}')
+    # print(client.Kf)
+    challenge_file = 'data/challenge.json'
+    mcljson.save_to_json(challenge_file, H)
+    print(f'written challenge {challenge_file}')
+
+if sys.argv[2] == "cloud":
+    input("challenge")
+    # cloud
+    loaded_challenge = mcljson.load_from_json('data/challenge.json')
+    cloud_challenge = cloud.deserialize_challenge(loaded_challenge)
+    Pf = cloud.verify(cloud_challenge)
+    # print(Pf)
+    mcljson.save_to_json('data/proof_file.json', Pf)
+
+
+
+if sys.argv[2] == "client":
+    input("proof")
+    loaded_proof_file__ = mcljson.load_from_json('data/proof_file.json')
+    if isinstance(loaded_proof_file__, str):
+        proof_file__ = mcl.G1()
+        proof_file__.setStr(bytes(loaded_proof_file__, 'latin-1'))
+        if client.check_challenge(proof_file__):
+            print("Proof verified!")
+        else:
+            print("Proof failed!")
 # print(f'{client.check_challenge(Pf)=}')
 
 
-# client
-file_output = 'output.txt'
-cloud.get_file(file_output)
-import filecmp
-identical = filecmp.cmp(file_name, file_output)
-print(f'{identical=}')
-assert(identical)
+# # client
+# file_output = 'output.txt'
+# cloud.get_file(file_output)
+# import filecmp
+# identical = filecmp.cmp(file_name, file_output)
+# print(f'{identical=}')
+# assert(identical)
