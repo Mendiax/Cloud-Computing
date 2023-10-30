@@ -1,8 +1,9 @@
 
-from cProfile import label
 from http import client
-from tempfile import tempdir
 import mcl
+import mcljson
+
+from typing import List, Tuple, Any, Union
 
 from functools import reduce
 
@@ -13,26 +14,6 @@ def get_fr(val : int):
     x.setInt(val)
     return x
 
-# def exponential(x, y):
-#     if x.isZero():
-#         return get_fr(0)
-#     if y == 0:
-#         return get_fr(1)
-#     r = mcl.Fr()
-#     r.setInt(1)
-#     # print(y)
-#     for i in range(y):
-#         r = r * x
-#     return r
-
-# def horner_exponential(x, n):
-#     result = get_fr(1)
-#     one = get_fr(1)
-#     for i in range(n, 0, -1):
-#         i_fr = get_fr(i)
-#         result = one + ((x / i_fr) * result)
-#     return result
-
 
 def lagrange_interpolation(x, phi):
     def term(i):
@@ -42,18 +23,6 @@ def lagrange_interpolation(x, phi):
         return yi * (reduce(lambda x,y : x *y, numerator) / reduce(lambda x,y : x *y, denominator))
 
     return reduce(lambda x,y : x+y, [term(i) for i in range(len(phi))])
-    # interpolation = mcl.G1()
-    # for point_1 in phi:
-    #     x_i, y_i = point_1
-    #     multi = mcl.Fr()
-    #     multi.setInt(1)
-    #     for point_2 in phi:
-    #             x_j, y_j = point_2
-    #             if x_i != x_j:
-    #                 multi *= (x - x_j) / (x_i - x_j)
-    #     multi = y_i * multi
-    #     interpolation += multi
-    # return interpolation
 
 
 def eval_poly_horner(coefficients, x):
@@ -71,7 +40,7 @@ def convert_bytes_to_int(bytes, chunk_id):
     return int.from_bytes(bytes, byteorder='little') + chunk_id
 
 def convert_bytes_to_fr(bytes, chunk_id):
-    assert chunk_id < 2**BITS_PER_IDX
+    # assert chunk_id < 2**BITS_PER_IDX
     mi = mcl.Fr()
     # mi.setStr(bytes)
     mi = get_fr(convert_bytes_to_int(bytes, chunk_id))
@@ -130,7 +99,7 @@ class Client:
                 data = fd.read(CHUNK_SIZE)
                 if data == b'':
                     break
-                print(f'{data=}')
+                # print(f'{data=}')
                 # assert chunk_id < 2**16
                 # mi = get_fr(int.from_bytes(data, byteorder='little') << 16 + chunk_id)
                 M.append(data)
@@ -203,6 +172,28 @@ class Cloud:
             for mi, ti in self.Tf:
                 fd.write(mi)
 
+    @staticmethod
+    def deserialize_tagged_file(json_data: List[List[Union[str, bytes]]]) -> List[Tuple[bytes, mcl.Fr]]:
+        deserialized_data = []
+        for item in json_data:
+            if len(item) == 2:
+                raw_data = bytes(item[0], 'latin-1')
+                fr_value_ = mcl.Fr()
+                fr_value_.setStr(bytes(item[1], 'latin-1'))
+                deserialized_data.append((raw_data, fr_value_))
+        return deserialized_data
+
+    @staticmethod
+    def deserialize_challenge(json_data: List[str]) -> Tuple[mcl.G1, mcl.Fr, mcl.G1]:
+        g_value__ = mcl.G1()
+        x_value_ = mcl.Fr()
+        g_coefficient__ =mcl. G1()
+
+        if len(json_data) == 3:
+            g_value__.setStr(bytes(json_data[0], 'latin-1'))
+            x_value_.setStr(bytes(json_data[1], 'latin-1'))
+            g_coefficient__.setStr(bytes(json_data[2], 'latin-1'))
+        return g_value__, x_value_, g_coefficient__
 
 
 
@@ -218,26 +209,55 @@ print(file_name)
 
 client = Client(file_name)
 cloud = Cloud()
+
+
+# client
 tokens = client.get_file_tokens()
 # tokens.pop()
 print(f'{len(tokens)=}')
+mcljson.save_to_json('data/tagged_file.json', tokens)
+
+
+
+# cloud
+loaded_data = mcljson.load_from_json('data/tagged_file.json')
 # print(tokens)
-cloud.upload(tokens)
+cloud.upload(cloud.deserialize_tagged_file(loaded_data))
 
+
+
+
+#  client
 H = client.gen_challenge()
-
 # print(f'{Q=}\n{H=}')
 # print(client.Kf)
-Pf = cloud.verify(H)
+mcljson.save_to_json('data/challenge.json', H)
+
+
+# cloud
+loaded_challenge = mcljson.load_from_json('data/challenge.json')
+cloud_challenge = cloud.deserialize_challenge(loaded_challenge)
+Pf = cloud.verify(cloud_challenge)
 # print(Pf)
+mcljson.save_to_json('data/proof_file.json', Pf)
 
 
 
-print(f'{client.check_challenge(Pf)=}')
 
+loaded_proof_file__ = mcljson.load_from_json('data/proof_file.json')
+if isinstance(loaded_proof_file__, str):
+    proof_file__ = mcl.G1()
+    proof_file__.setStr(bytes(loaded_proof_file__, 'latin-1'))
+    if client.check_challenge(proof_file__):
+        print("Proof verified!")
+    else:
+        print("Proof failed!")
+# print(f'{client.check_challenge(Pf)=}')
+
+
+# client
 file_output = 'output.txt'
 cloud.get_file(file_output)
-
 import filecmp
 identical = filecmp.cmp(file_name, file_output)
 print(f'{identical=}')

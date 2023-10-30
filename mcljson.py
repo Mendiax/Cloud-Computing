@@ -1,4 +1,5 @@
 import json
+from typing import List, Tuple, Any, Union
 import mcl
 
 def jstore(d):
@@ -57,3 +58,25 @@ def read_json_mcl(path : str):
 def write_json_mcl(path : str, dictionary):
     with open(path, 'w') as fd:
         json.dump(dictionary, fd, indent=2, cls=mclEncoder)
+
+
+
+
+# Od Witka https://github.com/JaWitold/CloudComputing/blob/master/polynomial.py
+
+def custom_encoder(obj: Any) -> Union[str, bytes]:
+    if hasattr(obj, 'getStr'):
+        return obj.getStr()
+    elif isinstance(obj, bytes):
+        return obj.decode('latin-1')
+    raise TypeError("Object of unsupported type")
+
+
+def save_to_json(file_path: str, value: Any) -> None:
+    with open(file_path, 'w') as json_file:
+        json_file.write(json.dumps(value, default=custom_encoder))
+
+
+def load_from_json(file_path: str) -> Any:
+    with open(file_path, 'r') as file:
+        return json.load(file)

@@ -3,7 +3,8 @@ from cProfile import label
 from http import client
 from tempfile import tempdir
 import mcl
-
+import json
+import mcljson
 from functools import reduce
 
 Z = 8
@@ -22,18 +23,6 @@ def lagrange_interpolation(x, phi):
         return yi * (reduce(lambda x,y : x *y, numerator) / reduce(lambda x,y : x *y, denominator))
 
     return reduce(lambda x,y : x+y, [term(i) for i in range(len(phi))])
-    # interpolation = mcl.G1()
-    # for point_1 in phi:
-    #     x_i, y_i = point_1
-    #     multi = mcl.Fr()
-    #     multi.setInt(1)
-    #     for point_2 in phi:
-    #             x_j, y_j = point_2
-    #             if x_i != x_j:
-    #                 multi *= (x - x_j) / (x_i - x_j)
-    #     multi = y_i * multi
-    #     interpolation += multi
-    # return interpolation
 
 
 def eval_poly_horner(coefficients, x):
@@ -43,21 +32,8 @@ def eval_poly_horner(coefficients, x):
     return result
 
 
-# def eval_poly(P, x) -> mcl.Fr:
-#     y = mcl.Fr()
-#     y.setInt(0)
-#     for i, a in enumerate(P):
-#         y += horner_exponential(x, i) * a
-#     # print(y)
-#     return y
 
-def fr_to_str(fr : mcl.Fr):
-    return fr.serialize().hex()
 
-def fr_from_str(fr_str : str):
-    fr = mcl.Fr()
-    fr.deserialize(bytes.fromhex(fr_str))
-    return fr
 
 
 class Client:
@@ -74,27 +50,38 @@ class Client:
         return A
 
     def save_to_file(self, path):
+
         print(self.sk)
+        # json_dict = {
+        #     "sk" : fr_to_str(self.sk),
+        #     "poly" : [fr_to_str(a) for a in self.LF],
+        #     "file" : self.file_name
+        # }
         json_dict = {
-            "sk" : fr_to_str(self.sk),
-            "poly" : [fr_to_str(a) for a in self.LF],
+            "sk" : self.sk,
+            "poly" : [a for a in self.LF],
             "file" : self.file_name
         }
         # print(json.dumps(json_dict, indent=2))
+        mcljson.write_json_mcl(path, json_dict)
 
-        with open(path, 'w') as fd:
-            fd.write(json.dumps(json_dict,indent=2))
-            # json.dump(fd, json_dict)
+        # with open(path, 'w') as fd:
+        #     fd.write(json.dumps(json_dict,indent=2, cls=mcljson.mclEncoder))
+        #     # json.dump(fd, json_dict)
 
     def load_from_file(self, path):
+        # json_dict = mcljson.read_json_mcl(path)
+        # self.sk = json_dict["sk"]
+        # self.LF = json_dict["poly"]
+        # self.file_name = json_dict["file"]
         with open(path, 'r') as fd:
             file = fd.read()
-            json_dict = json.loads(file)
-            # print(json_dict)
-            self.sk = fr_from_str(json_dict["sk"])
-            self.LF = [
-                fr_from_str(a) for a in json_dict["poly"]
-            ]
+            json_dict = json.loads(file, cls=mcljson.mclDecoder)
+            print(json_dict)
+            # self.sk = fr_from_str(json_dict["sk"])
+            # self.LF = [
+            #     fr_from_str(a) for a in json_dict["poly"]
+            # ]
             self.file_name = json_dict["file"]
 
     def get_file_tokens(self):
@@ -152,19 +139,7 @@ class Client:
 
 
 
-import json
-def read_proof_from_json(path : str):
-    with open(path, 'r') as fd:
-        json = json.load(fd)
 
-        return mcl.G1(json['proof'])
-
-# def write_proof_to_json(path : str, pf : mcl.G1):
-#     with open(path, 'r') as fd:
-#         json_dict = {
-#             "proof" : pf.getStr()
-#         }
-#         json.dump(fd, json_dict)
 
 import sys
 
