@@ -82,6 +82,7 @@ class Client:
         self.sk = mcl.Fr.rnd()
 
 
+
     def POLY(self, IDf, length):
         A = [
             mcl.Fr.setHashOf(f'{self.sk}{IDf}{i}'.encode())
@@ -128,17 +129,18 @@ class Client:
     def gen_challenge(self):
         r = mcl.Fr.rnd()
         x = mcl.Fr.rnd()
-        # r = get_fr(12345)
-        # r = self.sk
-        # x = get_fr(123456)
+        # r = get_fr(456)
+        # x = get_fr(789)
 
-        Q = mcl.G1().hashAndMapTo(b'genQ')
+        Q = mcl.G1().hashAndMapTo(b'test')
         Qr = Q*r
         Kf = Qr * eval_poly_horner(self.LF, x)
-        # H = (Qr, x, Qr*eval_poly_horner(self.LF, get_fr(0)))
-        H = (Qr, x, Qr*self.LF[-1])
+        print(Q)
+        H = (Qr, x, Qr*eval_poly_horner(self.LF, get_fr(0)))
+        # H = (Qr, x, Qr*self.LF[-1])
 
         self.Kf = Kf
+        print(f'{self.Kf=}')
 
         return  H
 
@@ -200,71 +202,79 @@ class Cloud:
 import sys
 
 print(sys.argv)
-assert len(sys.argv) == 3
-if len(sys.argv) == 1 :
-    file_name = "test_file.txt"
+if len(sys.argv) == 2 :
+    file_name = "./data/test_file.txt"
 else:
-    file_name = sys.argv[1]
+    file_name = sys.argv[2]
 
 print(file_name)
+run_client = (sys.argv[1] == "client")
+run_cloud = (sys.argv[1] == "cloud")
 
-if sys.argv[2] == "client":
+# folder = '/home/bartek/cdrive/Users/Ja/Downloads/'
+# folder = '/home/bartek/cdrive/Users/Ja/Downloads/witek/'
+folder = './data/'
+
+if sys.argv[1] == "both":
+    run_client = True
+    run_cloud = True
+
+if run_client:
     client = Client(file_name)
-else:
+if run_cloud:
     cloud = Cloud()
 
-import os
-import glob
+# import os
+# import glob
 
-files = glob.glob('./data/*')
-for f in files:
-    os.remove(f)
+# files = glob.glob('./data/*')
+# for f in files:
+#     os.remove(f)
 
 
 
-if sys.argv[2] == "client":
+if run_client:
     input("start")
     # client
     tokens = client.get_file_tokens()
     # tokens.pop()
     print(f'{len(tokens)=}')
-    tagged_file = 'data/tagged_file.json'
+    tagged_file = folder + 'tagged_file.json'
     mcljson.save_to_json(tagged_file, tokens)
     print(f"written tagged file {tagged_file}")
 
 
-if sys.argv[2] == "cloud":
-    input("tagged")
+if run_cloud:
+    input("read tagged ")
     # cloud
-    loaded_data = mcljson.load_from_json('data/tagged_file.json')
+    loaded_data = mcljson.load_from_json(folder + 'tagged_file.json')
     # print(tokens)
     cloud.upload(cloud.deserialize_tagged_file(loaded_data))
 
 
 
-if sys.argv[2] == "client":
+if run_client:
     #  client
     H = client.gen_challenge()
-    # print(f'{Q=}\n{H=}')
     # print(client.Kf)
-    challenge_file = 'data/challenge.json'
+    challenge_file = folder + 'challenge.json'
     mcljson.save_to_json(challenge_file, H)
     print(f'written challenge {challenge_file}')
 
-if sys.argv[2] == "cloud":
-    input("challenge")
+if run_cloud:
+    input("read challenge")
     # cloud
-    loaded_challenge = mcljson.load_from_json('data/challenge.json')
+    loaded_challenge = mcljson.load_from_json(folder + 'challenge.json')
     cloud_challenge = cloud.deserialize_challenge(loaded_challenge)
     Pf = cloud.verify(cloud_challenge)
-    # print(Pf)
-    mcljson.save_to_json('data/proof_file.json', Pf)
+    print(Pf)
+    mcljson.save_to_json(folder + 'proof_file.json', Pf)
 
 
 
-if sys.argv[2] == "client":
+if run_client:
     input("proof")
-    loaded_proof_file__ = mcljson.load_from_json('data/proof_file.json')
+    loaded_proof_file__ = mcljson.load_from_json(folder + 'proof_file.json')
     if isinstance(loaded_proof_file__, str):
         proof_file__ = mcl.G1()
         proof_file__.setStr(bytes(loaded_proof_file__, 'latin-1'))
