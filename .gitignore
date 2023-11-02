@@ -3,3 +3,5 @@ __pycache__/*
 
 output.txt
 data/*
+*.pyc
+*.json

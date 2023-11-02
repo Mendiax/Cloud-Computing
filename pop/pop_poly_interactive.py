@@ -1,7 +1,7 @@
 
 from http import client
 import mcl
-import mcljson
+from ..mcljson import *
 
 from typing import List, Tuple, Any, Union
 
@@ -47,27 +47,6 @@ def convert_bytes_to_fr(bytes, chunk_id):
     # mi.setStr(str(convert_bytes_to_int(bytes, chunk_id)))
 
     return mi
-
-# def convert_bytes_to_fr(chunk : bytes, chunk_id : int):
-#     assert chunk_id < 2**(BYTES_PER_IDX * 8)
-#     mi = mcl.Fr()
-#     # chunk_idx = chunk_id.to_bytes(BYTES_PER_IDX, byteorder='big')
-#     # chunk_idx = f'{hex(chunk_id)[2:].upper():0>8}'.encode(encoding='ascii')
-#     chunk_idx = hex(chunk_id)[2:].upper()
-#     chunk_idx = f"{'0' * (BYTES_PER_IDX - len(chunk_idx))}" + chunk_idx
-#     print(chunk_idx)
-#     chunk_idx = chunk_idx.encode(encoding='latin-1')
-
-#     # print(f'{chunk_id=}')
-#     print(chunk)
-#     # print(chunk_idx)
-#     print(chunk + chunk_idx)
-#     # print(type(chunk))
-#     # print(type(chunk_idx))
-#     mi.setStr(chunk + chunk_idx)
-#     print(mi)
-
-#     return mi
 
 def convert_fr_to_bytes(fr : mcl.Fr):
     print(fr)
@@ -211,9 +190,9 @@ print(file_name)
 run_client = (sys.argv[1] == "client")
 run_cloud = (sys.argv[1] == "cloud")
 
-# folder = '/home/bartek/cdrive/Users/Ja/Downloads/'
+folder = '/home/bartek/cdrive/Users/Ja/Downloads/'
 # folder = '/home/bartek/cdrive/Users/Ja/Downloads/witek/'
-folder = './data/'
+# folder = './data/'
 
 if sys.argv[1] == "both":
     run_client = True
