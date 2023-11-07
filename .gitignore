@@ -5,3 +5,5 @@ output.txt
 data/*
 *.pyc
 *.json
+client.log
+*.txt

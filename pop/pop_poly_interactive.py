@@ -1,7 +1,8 @@
 
 from http import client
 import mcl
-from ..mcljson import *
+# from mcljson import *
+import mcljson
 
 from typing import List, Tuple, Any, Union
 
@@ -203,17 +204,10 @@ if run_client:
 if run_cloud:
     cloud = Cloud()
 
-# import os
-# import glob
-
-# files = glob.glob('./data/*')
-# for f in files:
-#     os.remove(f)
-
 
 
 if run_client:
-    input("start")
+    input("write tagged")
     # client
     tokens = client.get_file_tokens()
     # tokens.pop()
@@ -234,6 +228,7 @@ if run_cloud:
 
 if run_client:
     #  client
+    input("write challenge")
     H = client.gen_challenge()
     # print(client.Kf)
     challenge_file = folder + 'challenge.json'
