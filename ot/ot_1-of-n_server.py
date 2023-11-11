@@ -114,7 +114,6 @@ if run_server:
                 processed_file_path = f'{SERVER_PATH}/R.json'
                 R = sender.get_R()
                 write_list_json(processed_file_path, "R", R)
-
                 return processed_file_path
             raise Exception(f'{message=}')
         else:
@@ -148,11 +147,8 @@ if run_client:
     W = receiver.get_W(R)
     processed_file_path = f'{CLIENT_PATH}/{REQ_W_FILE}'
     write_list_json(processed_file_path, "W", W)
-    # send W
-
     response_json = client.send_file_to_server(processed_file_path, server_url)
     e = json.loads(response_json)['e']
-
     mc = receiver.decrypt(e)
 
 
