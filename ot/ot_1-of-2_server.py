@@ -23,49 +23,55 @@ logging.basicConfig(level=logging.INFO, filename='client.log', filemode='a',
 
 
 class Sender:
-    def __init__(self, Q : G1, m : list[str]) -> None:
-
-        self.m = m
-        self.n = len(m)
+    def __init__(self, Q : G1, m0 : str, m1 : str) -> None:
+        self.m = [m0, m1]
         self.Q = Q
-        self.r = [Fr.rnd() for _ in range(self.n)]
-        self.R = [Q * r for r in self.r]
 
-    def get_R(self):
-        return self.R
+    def get_A(self):
+        self.a = Fr.rnd()
+        self.A = self.Q * self.a
+        return self.A
 
-    def get_encrypted(self, W):
-        _1 = Fr()
-        _1.setInt(1)
-        k = [W * (_1/r) for r in self.r]
-        c = [encrypt(m,k) for m,k in zip(self.m, k)]
+    def get_encrypted(self, B):
+        k0 = Fr.setHashOf(f'{B*self.a}'.encode())
+        k1 = Fr.setHashOf(f'{(B - self.A)*self.a}'.encode())
 
-        return c
+        e0 = xor_strings(self.m[0], k0.getStr().decode())
+        e1 = xor_strings(self.m[1], k1.getStr().decode())
 
+        return [e0, e1]
 
 
 
 
 class Receiver:
-    def __init__(self, Q : G1, i : int) -> None:
-        self.i = i
+    def __init__(self, Q : G1, c : int) -> None:
+        self.c = c
         self.Q = Q
 
-    def get_W(self, R : list[G1]):
-        alpha = Fr.rnd()
-        assert self.i < len(R)
-        W = R[self.i] * alpha
+    def get_B(self, A : G1):
+        b = Fr.rnd()
+        self.kr = Fr.setHashOf(f'{A*b}'.encode())
 
-        self.ki = Q*alpha
-        return W
+        if self.c == 0:
+            B = self.Q * b
+        elif self.c == 1:
+            B = A + (self.Q * b)
+        else:
+            raise Exception("C not in range")
 
-    def decrypt(self, c : list[str]):
-        return decrypt(c[self.i], self.ki)
+        return B
+
+    def decrypt(self, e : list[str]):
+        ec = e[self.c]
+
+        m = xor_strings(self.kr.getStr().decode(), ec)
+        return remove_trailing_zeros(m)
 
 
-REQ_GET_R  = 'get_r'
-REQ_W_FILE = 'W.json'
-REQ_E_FILE = 'e.json'
+
+REQ_GET_A  = 'get_a'
+SEND_B = 'B.json'
 
 
 import json
@@ -102,7 +108,7 @@ else:
 
 
 Q = G1().hashAndMapTo(b'test')
-m = [f"message {i}" for i in range(100)]
+m = [f"message {i}" for i in range(2)]
 
 
 
@@ -110,54 +116,52 @@ if run_server:
     def sender_process_function(file_data : bytes, filename : str, message : str):
         logging.info(f'sender_process_function({file_data=}, {filename=}, {message=})')
         if message is not None:
-            if message == REQ_GET_R:
+            if message == REQ_GET_A:
                 processed_file_path = f'{SERVER_PATH}/R.json'
-                R = sender.get_R()
-                write_list_json(processed_file_path, "R", R)
-
+                A = sender.get_A()
+                write_list_json(processed_file_path, "A", [A])
                 return processed_file_path
             raise Exception(f'{message=}')
         else:
-            if filename == REQ_W_FILE:
-                e = sender.get_encrypted(W)
-                processed_file_path = f'{SERVER_PATH}/{REQ_E_FILE}'
+            if filename == SEND_B:
+                B = read_list_json(file_data.decode(), "B")[0]
+                e = sender.get_encrypted(B)
+                processed_file_path = f'{SERVER_PATH}/e.json'
                 write_list_json(processed_file_path, 'e', e)
                 return processed_file_path
             raise Exception(f'{filename=}')
 
     def run_server():
         global sender
-        sender = Sender(Q, m)
+        sender = Sender(Q, *m)
         server.run_server(sender_process_function, port=PORT)
 
 
     server_thread = threading.Thread(target=run_server)
     server_thread.start()
-    time.sleep(2)
+    time.sleep(3)
 
 
 if run_client:
-    i = 15
+    i = 1
     receiver = Receiver(Q, i)
 
-    response_json = client.send_message_to_server(REQ_GET_R, server_url)
-    # print(f'{response_json=}')
-    R = read_list_json(response_json, "R")
+    # A = sender.get_A()
+    response_json = client.send_message_to_server(REQ_GET_A, server_url)
+    print(f'{response_json=}')
+    A = read_list_json(response_json, "A")[0]
 
+    B = receiver.get_B(A)
 
-    W = receiver.get_W(R)
-    processed_file_path = f'{CLIENT_PATH}/{REQ_W_FILE}'
-    write_list_json(processed_file_path, "W", W)
-    # send W
-
+    # e = sender.get_encrypted(B)
+    processed_file_path = f'{CLIENT_PATH}/{SEND_B}'
+    write_list_json(processed_file_path, "B", [B])
     response_json = client.send_file_to_server(processed_file_path, server_url)
-    e = json.loads(response_json)['e']
+    e = read_list_json(response_json, "e")
 
     mc = receiver.decrypt(e)
 
-
     # check for success
-
     print(f'{m[i].encode()}; {mc.encode()};')
     print(f'{m[i]=}; {mc=};')
 
