@@ -70,15 +70,23 @@ class Receiver:
 
 
 
-REQ_GET_A  = 'get_a'
-SEND_B = 'B.json'
+REQ_GET_A  = 'get_r'
+SEND_B = 'W.json'
 
 
 import json
 def read_list_json(json_str, json_name):
     # logging.info(f'{json_str=}')
     r_json = json.loads(json_str)
-    return [mcljson.mcl_from_str(Ri, G1) for Ri in r_json[json_name]]
+    val = r_json[json_name]
+    # print(json_name)
+    # print(type(val))
+    # print(val)
+    if isinstance(val, list):
+        # print('list')
+        return [mcljson.mcl_from_str(Ri, G1) for Ri in val]
+    else:
+        return mcljson.mcl_from_str(val, G1)
 
 def write_list_json(filename : str, json_name, number_list):
     json_dict = {
@@ -102,9 +110,9 @@ if run_server:
     PORT = 8000
     server_url = f'http://localhost:{PORT}'
 else:
-    assert len(sys.argv) == 3
-    server_url = sys.argv[2]
-
+    # assert len(sys.argv) == 3
+    # server_url = sys.argv[2]
+    server_url = 'http://192.168.80.226:56000'
 
 
 Q = G1().hashAndMapTo(b'test')
@@ -119,12 +127,12 @@ if run_server:
             if message == REQ_GET_A:
                 processed_file_path = f'{SERVER_PATH}/R.json'
                 A = sender.get_A()
-                write_list_json(processed_file_path, "A", [A])
+                write_list_json(processed_file_path, "R", A)
                 return processed_file_path
             raise Exception(f'{message=}')
         else:
             if filename == SEND_B:
-                B = read_list_json(file_data.decode(), "B")[0]
+                B = read_list_json(file_data.decode(), "W")
                 e = sender.get_encrypted(B)
                 processed_file_path = f'{SERVER_PATH}/e.json'
                 write_list_json(processed_file_path, 'e', e)
@@ -143,33 +151,34 @@ if run_server:
 
 
 if run_client:
-    i = 1
+    i = 0
     receiver = Receiver(Q, i)
 
     # A = sender.get_A()
     response_json = client.send_message_to_server(REQ_GET_A, server_url)
     print(f'{response_json=}')
-    A = read_list_json(response_json, "A")[0]
+    A = read_list_json(response_json, "R")
 
     B = receiver.get_B(A)
 
     # e = sender.get_encrypted(B)
     processed_file_path = f'{CLIENT_PATH}/{SEND_B}'
-    write_list_json(processed_file_path, "B", [B])
+    write_list_json(processed_file_path, "W", B)
     response_json = client.send_file_to_server(processed_file_path, server_url)
-    e = read_list_json(response_json, "e")
+    # e = read_list_json(response_json, "e")
+    e = json.loads(response_json)["e"]
 
     mc = receiver.decrypt(e)
 
-    # check for success
-    print(f'{m[i].encode()}; {mc.encode()};')
-    print(f'{m[i]=}; {mc=};')
+    print(f'received: {mc.encode()}')
+    # print(f'{m[i].encode()}; {mc.encode()};')
+    # print(f'{m[i]=}; {mc=};')
 
-    success = m[i] == mc
-    if success:
-        print('Success')
-    else:
-        print('Failed')
+    # success = m[i] == mc
+    # if success:
+    #     print('Success')
+    # else:
+    #     print('Failed')
 
 
 

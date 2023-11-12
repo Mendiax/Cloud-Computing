@@ -53,7 +53,7 @@ class Receiver:
 
     def get_W(self, R : list[G1]):
         alpha = Fr.rnd()
-        assert self.i < len(R)
+        assert self.i < len(R), f"{self.i}, {R}"
         W = R[self.i] * alpha
 
         self.ki = Q*alpha
@@ -72,7 +72,16 @@ import json
 def read_list_json(json_str, json_name):
     # logging.info(f'{json_str=}')
     r_json = json.loads(json_str)
-    return [mcljson.mcl_from_str(Ri, G1) for Ri in r_json[json_name]]
+    val = r_json[json_name]
+    # print(json_name)
+    # print(type(val))
+    # print(val)
+    if isinstance(val, list):
+        # print('list')
+        return [mcljson.mcl_from_str(Ri, G1) for Ri in val]
+    else:
+        return mcljson.mcl_from_str(val, G1)
+
 
 def write_list_json(filename : str, json_name, number_list):
     json_dict = {
@@ -84,7 +93,10 @@ def write_list_json(filename : str, json_name, number_list):
 
 
 
-
+# run_server = False
+# run_client = True
+# server_url = 'http://192.168.80.226:8000'
+# time.sleep(10)
 
 run_server = (sys.argv[1] == "server")
 run_client = (sys.argv[1] == "client")
@@ -93,16 +105,16 @@ if sys.argv[1] == "both":
     run_client = True
 
 if run_server:
-    PORT = 8000
+    PORT = 56000
     server_url = f'http://localhost:{PORT}'
 else:
-    assert len(sys.argv) == 3
-    server_url = sys.argv[2]
+    # assert len(sys.argv) == 3
+    server_url = 'http://192.168.80.226:56000'
 
-
+print(server_url)
 
 Q = G1().hashAndMapTo(b'test')
-m = [f"message {i}" for i in range(100)]
+m = [f"message {i}" for i in range(10)]
 
 
 
@@ -136,7 +148,7 @@ if run_server:
 
 
 if run_client:
-    i = 15
+    i = 4
     receiver = Receiver(Q, i)
 
     response_json = client.send_message_to_server(REQ_GET_R, server_url)
@@ -153,15 +165,15 @@ if run_client:
 
 
     # check for success
+    print(f'received: {mc.encode()}')
+    # print(f'{m[i].encode()}; {mc.encode()};')
+    # print(f'{m[i]=}; {mc=};')
 
-    print(f'{m[i].encode()}; {mc.encode()};')
-    print(f'{m[i]=}; {mc=};')
-
-    success = m[i] == mc
-    if success:
-        print('Success')
-    else:
-        print('Failed')
+    # success = m[i] == mc
+    # if success:
+    #     print('Success')
+    # else:
+    #     print('Failed')
 
 
 
