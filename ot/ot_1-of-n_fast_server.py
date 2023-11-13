@@ -25,17 +25,21 @@ SERVER_PATH = 'server'
 logging.basicConfig(level=logging.INFO, filename='client.log', filemode='a',
                     format='%(asctime)s - %(levelname)s - %(message)s')
 # global params
-M_SIZE = 256 # bytes
+M_SIZE = 2048 # bytes
 K_SIZE = 128 # bytes
-N = 3
-m = [f'message {i}' for i in range(N)]
-# assert not any(m, lambda mi : len(mi) < M_SIZE)
+N = 100
+m = [f'0123456789' * 200 for i in range(N)]
+assert not any({len(mi) > M_SIZE for mi in m})
 l = math.ceil(math.log2(N))
-print(f'{N=}')
-print(f'{l=}')
 
 K_NUM = math.ceil((M_SIZE) / K_SIZE)
 set_xor_max_len(M_SIZE)
+print(f'{N=}')
+print(f'{l=}')
+print(f'{K_NUM=}')
+
+Q = G1().hashAndMapTo(b'test')
+
 
 
 
@@ -43,6 +47,7 @@ set_xor_max_len(M_SIZE)
 REQ_GET_A  = 'get_r'
 A_LABEL = "R"
 RESP_REQ_GET_A = 'R.json'
+W_LABEL = "W"
 REQ_GET_E = 'W.json'
 RESP_REQ_GET_E = REQ_GET_E
 E_LABEL = "e"
@@ -124,7 +129,7 @@ class Sender:
                 # start new 1 of 2
                 if self.ot_counter < l:
                     self.ot_1of2_sender =\
-                        Sender(self.Q, self.k_pairs[self.ot_counter])
+                        self.Sender1Of2(self.Q, *self.k_pairs[self.ot_counter])
                     processed_file_path = f'{SERVER_PATH}/{RESP_REQ_GET_A}'
                     A = self.ot_1of2_sender.get_A()
                     mcljson.write_list_json(processed_file_path, A_LABEL, A)
@@ -135,15 +140,15 @@ class Sender:
                 C = self.get_c()
                 processed_file_path = f'{SERVER_PATH}/{RESP_REQ_GET_C}'
                 mcljson.write_list_json(processed_file_path, C_LABEL, C)
-                print(processed_file_path)
                 return processed_file_path
             raise Exception(f'{message=}')
         else:
             if filename == REQ_GET_E:
-                B = mcljson.read_list_json(file_data.decode(), E_LABEL)
+                # print(f'{file_data.decode()=}, {E_LABEL=}')
+                B = mcljson.read_list_json(file_data.decode(), B_LABEL)
                 e = self.ot_1of2_sender.get_encrypted(B)
                 processed_file_path = f'{SERVER_PATH}/{RESP_REQ_GET_E}'
-                mcljson.write_list_json(processed_file_path, 'e', e)
+                mcljson.write_list_json(processed_file_path, E_LABEL, e)
                 self.ot_counter += 1
                 return processed_file_path
             raise Exception(f'{filename=}')
@@ -184,14 +189,14 @@ class Receiver:
                 client.send_message_to_server(REQ_GET_A, self.server_url)
             print(f'{response_json=}')
             A = mcljson.read_list_json(response_json, A_LABEL)
-            B = receiver.get_B(A)
+            B = self.get_B(A)
             processed_file_path = f'{CLIENT_PATH}/{REQ_GET_E}'
             mcljson.write_list_json(processed_file_path, B_LABEL, B)
             response_json = \
                 client.send_file_to_server(processed_file_path, self.server_url)
             # e = read_list_json(response_json, "e")
             e = json.loads(response_json)[E_LABEL]
-            return  receiver.decrypt(e)
+            return self.decrypt(e)
 
 
     def __init__(self, Q : G1, i : int, server_url : str) -> None:
@@ -204,11 +209,10 @@ class Receiver:
         for i in range(l):
             bit = get_ith_bit(self.j, i)
             rec = self.Receiver1Of2(self.Q, bit, self.server_url)
-            self.k.append(rec)
+            ki = rec.run_ot()
+            self.k.append(ki)
 
     def decrypt(self, cipher : str):
-
-
         plain = cipher
         for i in range(l):
             ki = self.k[i]
@@ -216,22 +220,15 @@ class Receiver:
             for i in range(K_NUM):
                 fk += hashki(ki, i)
             plain = xor_strings(plain, fk)
-        return plain
+        return remove_trailing_zeros(plain)
 
     def run_ot(self):
         response_json = client.send_message_to_server(REQ_GET_C, self.server_url)
         # print(f'{response_json=}')
         C = mcljson.read_list_json(response_json, C_LABEL)
         self.run_ot_1of2()
+        print(self.k)
         return self.decrypt(C[self.j])
-
-
-
-
-
-
-
-
 
 
 
@@ -256,8 +253,6 @@ else:
 
 print(server_url)
 
-Q = G1().hashAndMapTo(b'test')
-m = [f"message {i}" for i in range(10)]
 
 
 
