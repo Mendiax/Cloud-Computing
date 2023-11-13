@@ -8,6 +8,7 @@ def send_file_to_server(file_path, url):
     @param url The URL of the server endpoint expecting the file upload.
     """
     url += "/upload"
+    print(f'clients sends {file_path=}')
     with open(file_path, 'rb') as f:
         files = {'file': (file_path, f)}
         response = requests.post(url, files=files)
@@ -30,6 +31,7 @@ def send_message_to_server(message, url):
     """
     url += '/send'
     data = {'message': message}
+    print(f'clients sends {data=}')
     response = requests.post(url, data=data)
     return response.content
     # try:

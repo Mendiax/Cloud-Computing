@@ -45,3 +45,21 @@ def write_json_mcl(path : str, dictionary):
         json.dump(dictionary, fd, indent=2, cls=mclEncoder)
 
 
+
+def read_list_json(json_str, json_name):
+    r_json = json.loads(json_str)
+    val = r_json[json_name]
+    try:
+        if isinstance(val, list):
+            return [mcl_from_str(Ri, mcl.G1) for Ri in val]
+        else:
+            return mcl_from_str(val, mcl.G1)
+    except ValueError:
+        return val
+
+
+def write_list_json(filename : str, json_name, number_list):
+    json_dict = {
+        json_name : number_list
+    }
+    write_json_mcl(filename, json_dict)

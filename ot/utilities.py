@@ -3,7 +3,9 @@ import unittest
 from mcl import Fr
 
 MAX_LEN = 400
-
+def set_xor_max_len(val : int):
+    global MAX_LEN
+    MAX_LEN = val
 
 def xor_strings(str1, str2):
     """
@@ -20,8 +22,8 @@ def xor_strings(str1, str2):
     # print(str1)
     # print(str2)
 
-    assert len(str1) <= MAX_LEN, f'{len(str1)=} {str1}'
-    assert len(str2) <= MAX_LEN, f'{len(str2)=} {str2}'
+    assert len(str1) <= MAX_LEN, f'{MAX_LEN=} {len(str1)=} {str1}'
+    assert len(str2) <= MAX_LEN, f'{MAX_LEN=} {len(str2)=} {str2}'
 
     str1_aligned = str1.ljust(MAX_LEN, "\x00")
     str2_aligned = str2.ljust(MAX_LEN, "\x00")
@@ -45,6 +47,23 @@ def encrypt(m : str, k):
 
 def decrypt(c : str, k):
     return remove_trailing_zeros(xor_strings(c, k.getStr().decode()))
+
+def get_ith_bit(j: int, i: int) -> int:
+    """
+    Get the i-th bit of an l-bit integer j.
+
+    :param j: The integer from which to extract the bit.
+    :type j: int
+    :param i: The position of the bit to extract (0-based index).
+    :type i: int
+    :return: The i-th bit of j.
+    :rtype: int
+    """
+    if i < 0:
+        raise ValueError("Index i must be non-negative")
+
+    # Right shift j by i, then check the LSB
+    return (j >> i) & 1
 
 
 class TestXorStrings(unittest.TestCase):
