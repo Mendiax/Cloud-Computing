@@ -22,7 +22,7 @@ class HTTPServer_RequestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         """ Handle POST request sent by the client. """
-        if self.path == '/upload':
+        if self.path == '/upload' or self.path == '/send':
             # Parse the form data posted
             form = cgi.FieldStorage(
                 fp=self.rfile,
@@ -30,17 +30,24 @@ class HTTPServer_RequestHandler(BaseHTTPRequestHandler):
                 environ={'REQUEST_METHOD': 'POST'}
             )
 
-            # Get the file field from the form
-            file_field = form['file']
-            if file_field.filename:
-                # It's a file, process it
+            file_data = None
+            file_name = None
+            message = None
+
+            try:
+                # Get the file field from the form
+                file_field = form['file']
                 file_data = file_field.file.read()
                 file_name = os.path.basename(file_field.filename)
+            except:
+                pass
+            if 'message' in form:
+                message = form.getvalue('message')
 
-                # Process the file using the provided function
-                processed_file_name = self.file_processor.process(file_data, file_name, None)
+            processed_file_name = self.file_processor.process(file_data, file_name, message)
 
-                # Attempt to read the processed file and send it back
+            # Attempt to read the processed file and send it back
+            if processed_file_name is not None:
                 try:
                     with open(processed_file_name, 'rb') as f:
                         self.send_response(200)
@@ -52,40 +59,9 @@ class HTTPServer_RequestHandler(BaseHTTPRequestHandler):
                     self.send_error(404, f"File {processed_file_name} not found on server.")
             else:
                 # Not a file, error
-                self.send_response(400)
+                self.send_response(200)
                 self.end_headers()
-                self.wfile.write(b"No file was uploaded.")
-        elif self.path == '/send':
-            # Parse the form data posted
-            form = cgi.FieldStorage(
-                fp=self.rfile,
-                headers=self.headers,
-                environ={'REQUEST_METHOD': 'POST'}
-            )
-
-            # Check if a message was sent
-            if 'message' in form:
-                message = form.getvalue('message')
-                # Here you could process the text message
-                # self.send_response(200)
-                # self.end_headers()
-                # self.wfile.write(f"Received text message: {message}".encode())
-                # Process the file using the provided function
-                processed_file_name = self.file_processor.process(None, None, message)
-
-                # Attempt to read the processed file and send it back
-                try:
-                    with open(processed_file_name, 'rb') as f:
-                        self.send_response(200)
-                        self.send_header('Content-Type', 'application/octet-stream')
-                        self.send_header('Content-Disposition', f'attachment; filename="{processed_file_name}"')
-                        self.end_headers()
-                        self.wfile.write(f.read())
-                except IOError:
-                    self.send_error(404, f"File {processed_file_name} not found on server.")
-
-            else:
-                self.send_error(400, "No message field found.")
+                self.wfile.write(b"No file was returned of message was not handled.")
         else:
             # Endpoint not found
             self.send_error(404, "Endpoint not found.")
