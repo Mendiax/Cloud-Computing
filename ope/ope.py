@@ -19,11 +19,19 @@ import utilities
 import ot_1ofn_fast_server
 import ot_1of2_server
 
-OPE_SEND_XY = "xy.json"
+OPE_SEND_XY = "send_xy"
 OPE_XY_LABEL = "xy"
 
 
-SEC_PARAM_N = 5
+DEG_POLY = 10
+
+# sec params
+SEC_PARAM_M = 5
+SEC_PARAM_K = 5
+
+SEC_PARAM_N = SEC_PARAM_K * DEG_POLY + 1
+SEC_PARAM_NM = SEC_PARAM_N * SEC_PARAM_M
+
 
 class Poly:
     def __init__(self, deg: int, seed="123") -> None:
@@ -31,6 +39,12 @@ class Poly:
             Fr.setHashOf(f'{seed}{i}'.encode())
             for i in range(deg + 1)
         ]
+
+    def deg(self):
+        return len(self.coefficients) - 1
+
+    def set_0(self, val : Fr):
+        self.coefficients[-1] = val
 
     def eval_poly_horner(self, x):
         result = Fr(0)
@@ -54,12 +68,19 @@ class Cloud:
         self.run_1ofn = 0
         self.poly = poly
 
+        self.k = SEC_PARAM_K
+        self.d = poly.deg() * self.k
+
     @staticmethod
     def get_addr():
         return 'ope'
 
+    def setup(self):
+        self.poly_x = Poly(self.d, seed='asd')
+        self.poly_x.set_0(Fr(0))
+
     def calc_q(self,x,y):
-        return x * y
+        return self.poly_x.eval_poly_horner(x) + self.poly.eval_poly_horner(y)
 
     def sender_process_function(self, addr, message, payload):
         print(f'{self.run_1ofn=}')
@@ -71,6 +92,7 @@ class Cloud:
             raise Exception(f'Address {addr} not handled')
         print(f'[CLOUD] sender_process_function({message=}, {payload=})')
         if message == OPE_SEND_XY:
+            self.setup()
             # print(f'{file_data.decode()=}, {E_LABEL=}')
             XY = json.loads(payload)[OPE_XY_LABEL]
             R = []
@@ -97,17 +119,14 @@ class User:
         self.T = []
 
     def gen_xy(self, alpha):
-        self.k = 3  # ???
-        self.N = 9
-
         X = [
             Fr.setHashOf(str(random.random()).encode())
-            for _ in range(self.N)
+            for _ in range(SEC_PARAM_NM)
         ]
-        self.S = Poly(self.k)
-        self.S.coefficients[-1] = alpha  # S(0) = alpha
+        self.S = Poly(SEC_PARAM_K)
+        self.S.set_0(alpha)
         self.T = [
-            i for i in range(self.N)
+            i for i in range(SEC_PARAM_NM)
         ]
         while len(self.T) > SEC_PARAM_N:
             remove_index = random.randint(0, len(self.T) - 1)
@@ -137,9 +156,9 @@ class User:
         ]
         # print(R)
         XR = [_ for _ in zip(X,R)]
-        # print(XR)
+        print(len(XR))
 
-        Poly.lagrange_interpolation(self.alpha, XR)
+        return Poly.lagrange_interpolation(Fr(0), XR)
 
 
 def main():
@@ -150,7 +169,7 @@ def main():
     run_server_mode, run_client_mode, server_url = utilities.parse_args_mode()
     PORT = int(server_url.split(':')[-1])
 
-    poly = Poly(10)
+    poly = Poly(DEG_POLY)
 
     # comon params
     # N = 1000
@@ -172,7 +191,10 @@ def main():
         alpha = Fr(3)
         receiver = User(alpha, server_url=server_url)
         result = receiver.run_ope()
-        print(result == poly.eval_poly_horner(alpha))
+        print('Done:')
+        print(result)
+        print(poly.eval_poly_horner(alpha))
+        print('\n')
 
 
 if __name__ == '__main__':
