@@ -57,7 +57,7 @@ def read_list_json(json_str, json_name):
     except ValueError:
         return val
     except Exception as e:
-        print(f'{json_str=}, {json_name}')
+        print(f'read_list_json exception {json_str=}, {json_name=}\nException:{e}')
         exit(-1)
 
 def write_list_json(filename : str, json_name, number_list):
