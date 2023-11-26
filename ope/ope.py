@@ -120,7 +120,7 @@ class User:
 
     def gen_xy(self, alpha):
         X = [
-            Fr.setHashOf(str(random.random()).encode())
+            Fr.rnd()
             for _ in range(SEC_PARAM_NM)
         ]
         self.S = Poly(SEC_PARAM_K)
